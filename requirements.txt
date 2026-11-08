@@ -1,0 +1,7 @@
+# JSON Processor Requirements
+
+# Core Python libraries (built-in, no external packages needed)
+# This project uses only standard library modules
+
+# For running the script:
+# python json_processor.py

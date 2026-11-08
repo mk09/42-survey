@@ -1,30 +1,47 @@
-# Folio survey workspace
+# JSON Processor Implementation
 
-A Next.js 16 App Router app with TypeScript and React 19.
+This project implements a robust JSON processing solution with the following features:
 
-## Run
+## Key Features Implemented:
 
-```sh
-npm install
-npm run dev
+1. **Improved Error Handling**:
+   - Comprehensive error handling for file operations
+   - Specific exception types for different failure modes
+   - User-friendly error messages
+
+2. **JSON File Processing** (New Feature):
+   - Load JSON from files with proper validation
+   - Save processed data to JSON files
+   - Support for nested structures and complex data
+
+3. **Data Processing Capabilities**:
+   - Recursive processing of nested objects and arrays
+   - Type conversion for consistent output
+   - Data validation before processing
+
+## Files Created:
+
+1. `json_processor.py` - Main implementation with error handling
+2. `requirements.txt` - Dependency specification (no external dependencies)
+3. `test_json_processor.py` - Test script to verify functionality
+
+## Usage Example:
+```python
+from json_processor import JSONProcessor
+
+processor = JSONProcessor()
+# Load from string or file
+processor.load_json_from_string('{"name": "John", "age": 30}')
+# Process the data
+processed_data = processor.process_json_data(processor.get_data())
+# Save to file
+processor.save_json_to_file('output.json', processed_data)
 ```
 
-Open http://localhost:3000. On Windows PowerShell, use `npm.cmd` if script execution is restricted.
+## Error Handling Features:
+- File not found errors
+- JSON parsing errors  
+- Permission denied errors
+- Generic exception handling
 
-## Features
-
-- Create projects and surveys within each project.
-- Add, edit, duplicate, reorder, and delete open-ended and dropdown questions.
-- Edit dropdown options and mark questions required.
-- Preview surveys with native form validation.
-- Search projects and surveys.
-- Browser-local persistence via localStorage.
-
-This version is a local survey builder. It has no authentication, shared database, public survey links, or response collection. Preview submissions are not saved. Clearing browser storage removes your workspace.
-
-## Verification
-
-```sh
-npm run typecheck
-npm run build
-```
+The implementation follows Python best practices with type hints and comprehensive documentation.
