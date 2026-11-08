@@ -1,0 +1,92 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, ClipboardList, Copy, FileText, Folder, LayoutGrid, MoreHorizontal, Plus, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react';
+
+type Question = { id: string; title: string; type: 'text' | 'dropdown'; required: boolean; options: string[] };
+type Survey = { id: string; name: string; description: string; questions: Question[]; updated: string };
+type Project = { id: string; name: string; description: string; color: string; surveys: Survey[] };
+const uid = () => crypto.randomUUID();
+const initial: Project[] = [
+  { id: 'product', name: 'Product experience', description: 'Build a better product, one conversation at a time.', color: 'lavender', surveys: [
+    { id: 'onboarding', name: 'Onboarding feedback', description: 'Understand the first impression. Make every next step better.', updated: 'Nov 7, 2026', questions: [ { id: 'q1', title: 'How would you describe your first experience?', type: 'text', required: true, options: [] }, { id: 'q2', title: 'What brought you to our product?', type: 'dropdown', required: true, options: ['A recommendation', 'Social media', 'Search engine', 'Other'] }, { id: 'q3', title: 'What could we make better?', type: 'text', required: false, options: [] } ] },
+    { id: 'discovery', name: 'Feature discovery', description: 'Find out what matters most to your users.', questions: [], updated: 'Nov 6, 2026' },
+    { id: 'checkin', name: 'Quarterly check-in', description: 'A little reflection goes a long way.', questions: [], updated: 'Nov 4, 2026' },
+  ] },
+  { id: 'brand', name: 'Brand & audience', description: 'Get closer to the people behind the numbers.', color: 'peach', surveys: [] },
+  { id: 'team', name: 'Team insights', description: 'Make room for every voice on your team.', color: 'green', surveys: [] },
+];
+
+export default function Home() {
+  const [projects, setProjects] = useState<Project[]>(initial);
+  const [loaded, setLoaded] = useState(false);
+  const [storageError, setStorageError] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [surveyId, setSurveyId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [modal, setModal] = useState<'project' | 'survey' | null>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [preview, setPreview] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [menu, setMenu] = useState<string | null>(null);
+  const [tab, setTab] = useState<'all' | 'recent'>('all');
+  useEffect(() => { try { const data = localStorage.getItem('folio-workspace-v1'); if (data) { const parsed = JSON.parse(data); if (Array.isArray(parsed) && parsed.every(p => typeof p.id === 'string' && Array.isArray(p.surveys))) setProjects(parsed); } } catch { setStorageError(true); } setLoaded(true); }, []);
+  useEffect(() => { if (loaded) try { localStorage.setItem('folio-workspace-v1', JSON.stringify(projects)); } catch { setStorageError(true); } }, [projects, loaded]);
+  const project = projects.find(p => p.id === projectId);
+  const survey = project?.surveys.find(s => s.id === surveyId);
+  const total = projects.reduce((n,p) => n + p.surveys.length, 0);
+  function openProject(id: string | null) { setProjectId(id); setSurveyId(null); setQuery(''); setMenu(null); }
+  function updateSurvey(change: Partial<Survey>) { setProjects(ps => ps.map(p => p.id === projectId ? {...p, surveys: p.surveys.map(s => s.id === surveyId ? {...s, ...change, updated: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} : s)} : p)); }
+  function updateQuestion(id: string, change: Partial<Question>) { if (survey) updateSurvey({questions: survey.questions.map(q => q.id === id ? {...q, ...change} : q)}); }
+  function addQuestion(type: Question['type']) { if (survey) updateSurvey({questions: [...survey.questions, {id:uid(), title:'', type, required:false, options:type === 'dropdown' ? ['Option 1', 'Option 2'] : []}]}); }
+  function create() { if (!name.trim()) return; const id = uid(); if (modal === 'project') { setProjects([...projects, {id, name:name.trim(), description:description.trim(), color:['lavender','peach','green'][projects.length % 3], surveys:[]}]); openProject(id); } else if (project) { setProjects(projects.map(p => p.id === project.id ? {...p, surveys:[...p.surveys,{id,name:name.trim(),description:description.trim(),questions:[],updated:'Just now'}]} : p)); setSurveyId(id); } setModal(null); }
+  function showModal(type: 'project' | 'survey') { setName(''); setDescription(''); setModal(type); }
+  function removeProject(id: string) { if (confirm('Delete this project and all its surveys?')) { setProjects(projects.filter(p => p.id !== id)); setMenu(null); } }
+  function moveQuestion(index: number, direction: number) { if (!survey) return; const questions = [...survey.questions]; [questions[index], questions[index + direction]] = [questions[index + direction], questions[index]]; updateSurvey({questions}); }
+
+  return <div className="workspace">
+    <aside className="sidebar">
+      <a className="logo" href="/" aria-label="Folio home"><span className="logo-symbol">f</span>folio<span className="logo-dot">.</span></a>
+      <div className="workspace-switch"><span className="workspace-avatar">S</span><div>Studio workspace<small>Personal workspace</small></div><ChevronDown size={15}/></div>
+      <div className="nav-label">WORKSPACE</div>
+      <button className={`nav-item ${!project ? 'active' : ''}`} onClick={() => openProject(null)}><LayoutGrid size={18}/>All projects<span className="count">{projects.length}</span></button>
+      <div className="nav-label project-label">YOUR PROJECTS<button aria-label="Create project" onClick={() => showModal('project')}><Plus size={15}/></button></div>
+      <nav>{projects.map(p => <button key={p.id} className={`nav-item project-link ${projectId === p.id ? 'active' : ''}`} onClick={() => openProject(p.id)}><span className={`project-dot ${p.color}`}/><span>{p.name}</span></button>)}</nav>
+      <div className="sidebar-bottom"><div className="tip"><Sparkles size={19}/><strong>Good questions. Great insights.</strong><p>Your next big idea starts with a little curiosity.</p></div><div className="profile"><span className="avatar">JD</span><div>Your workspace<small>Local account</small></div><span className="online"/></div></div>
+    </aside>
+    <div className="main-shell">
+      <header className="topbar"><div className="breadcrumb"><Folder size={16}/><button onClick={() => openProject(null)}>Workspace</button><ChevronRight size={14}/>{project ? <><button onClick={() => setSurveyId(null)}>{project.name}</button>{survey && <><ChevronRight size={14}/><span>{survey.name}</span></>}</> : <span>All projects</span>}</div><span className="topbar-note"><span className="online"/>Your space for better questions</span></header>
+      <main>
+        {storageError && <div className="warning">Browser storage is unavailable. Changes will last only for this session.</div>}
+        {survey ? <>
+          <button className="back-link" onClick={() => setSurveyId(null)}><ArrowLeft size={15}/>Back to surveys</button>
+          <div className="page-heading"><div><div className="eyebrow">SURVEY BUILDER</div><input className="title-input" aria-label="Survey name" value={survey.name} onChange={e => updateSurvey({name:e.target.value})}/><input className="description-input" aria-label="Survey description" value={survey.description} placeholder="Add a survey description" onChange={e => updateSurvey({description:e.target.value})}/></div><button className="primary" onClick={() => {setSubmitted(false); setPreview(true);}}>Preview survey<ArrowRight size={16}/></button></div>
+          <div className="builder-toolbar"><span><FileText size={17}/>{survey.questions.length} questions</span><span className="saved"><Check size={14}/>{storageError ? 'Session only' : 'Saved in this browser'}</span></div>
+          <div className="question-list">{survey.questions.map((q,index) => <section className="question-card" key={q.id}>
+            <div className="question-top"><span className="question-number">{String(index+1).padStart(2,'0')}</span><span className="type-label">{q.type === 'text' ? <FileText size={15}/> : <ChevronDown size={15}/>} {q.type === 'text' ? 'Open-ended' : 'Dropdown'}</span><div className="question-actions"><button aria-label="Move question up" disabled={index===0} onClick={() => moveQuestion(index,-1)}><ArrowUp size={16}/></button><button aria-label="Move question down" disabled={index===survey.questions.length-1} onClick={() => moveQuestion(index,1)}><ArrowDown size={16}/></button><button aria-label="Duplicate question" onClick={() => updateSurvey({questions:[...survey.questions,{...q,id:uid(),options:[...q.options]}]})}><Copy size={16}/></button><button aria-label="Delete question" onClick={() => updateSurvey({questions:survey.questions.filter(x => x.id !== q.id)})}><Trash2 size={16}/></button></div></div>
+            <input className="question-title" aria-label={`Question ${index+1}`} placeholder="What would you like to ask?" value={q.title} onChange={e => updateQuestion(q.id,{title:e.target.value})}/>
+            {q.type==='text' ? <div className="answer-placeholder">Your respondent’s answer goes here…</div> : <div className="options">{q.options.map((option,i) => <div className="option" key={i}><span>{i+1}</span><input aria-label={`Option ${i+1} for question ${index+1}`} value={option} onChange={e => updateQuestion(q.id,{options:q.options.map((o,j) => i===j ? e.target.value : o)})}/><button aria-label={`Remove option ${i+1}`} disabled={q.options.length<=1} onClick={() => updateQuestion(q.id,{options:q.options.filter((_,j) => i!==j)})}><X size={15}/></button></div>)}<button className="text-button" onClick={() => updateQuestion(q.id,{options:[...q.options,`Option ${q.options.length+1}`]})}><Plus size={14}/>Add option</button></div>}
+            <div className="question-footer"><label><input type="checkbox" checked={q.required} onChange={e => updateQuestion(q.id,{required:e.target.checked})}/>Required question</label><select aria-label="Question type" value={q.type} onChange={e => updateQuestion(q.id,{type:e.target.value as Question['type'],options:q.options.length?q.options:['Option 1','Option 2']})}><option value="text">Open-ended</option><option value="dropdown">Dropdown</option></select></div>
+          </section>)}</div>
+          <div className="add-question"><div><Plus size={22}/><strong>Make room for another question</strong><span>Choose how you’d like people to answer.</span></div><button onClick={() => addQuestion('text')}><FileText size={17}/>Open-ended<Plus size={15}/></button><button onClick={() => addQuestion('dropdown')}><ChevronDown size={17}/>Dropdown<Plus size={15}/></button></div>
+        </> : <>
+          <div className="page-heading"><div><div className="eyebrow">{project ? 'PROJECT OVERVIEW' : 'A LITTLE CURIOSITY GOES A LONG WAY'}</div><h1>{project ? project.name : 'All projects'}<span className="heading-dot">.</span></h1><p>{project ? project.description || 'A home for your next great questions.' : 'Organize your research. Ask better questions. Find what matters.'}</p></div><button className="primary" onClick={() => showModal(project ? 'survey' : 'project')}><Plus size={18}/>{project ? 'New survey' : 'New project'}</button></div>
+          {!project && <div className="overview"><div><span className="stat-icon lavender"><Folder size={20}/></span><div><strong>{String(projects.length).padStart(2,'0')}</strong><span>Total projects</span></div></div><div><span className="stat-icon peach"><ClipboardList size={20}/></span><div><strong>{String(total).padStart(2,'0')}</strong><span>Surveys created</span></div></div><div className="overview-message"><span className="little-star">✳</span><p>Big discoveries start<br/>with a simple question.</p></div></div>}
+          <div className="list-toolbar"><div className="tabs"><button className={tab==='all'?'selected':''} onClick={() => setTab('all')}>{project?'All surveys':'All projects'}<span>{project?project.surveys.length:projects.length}</span></button><button className={tab==='recent'?'selected':''} onClick={() => setTab('recent')}>Recently added</button></div><label className="search"><Search size={17}/><input aria-label={project?'Search surveys':'Search projects'} placeholder={project?'Search surveys…':'Search projects…'} value={query} onChange={e => setQuery(e.target.value)}/></label></div>
+          <div className="project-grid">{!project ? (tab==='recent'?[...projects].reverse():projects).filter(p => `${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase())).map(p => <article className="project-card" key={p.id}>
+            <div className="card-top"><span className={`folder-icon ${p.color}`}><Folder size={24}/></span><div className="menu-wrap"><button className="icon-button" aria-label={`Actions for ${p.name}`} onClick={() => setMenu(menu===p.id?null:p.id)}><MoreHorizontal size={21}/></button>{menu===p.id && <div className="menu"><button onClick={() => removeProject(p.id)}><Trash2 size={14}/>Delete project</button></div>}</div></div>
+            <button className="card-content" onClick={() => openProject(p.id)}><h2>{p.name}</h2><p>{p.description || 'Your next discovery starts here.'}</p></button><div className="card-footer"><span><ClipboardList size={14}/>{p.surveys.length} {p.surveys.length===1?'survey':'surveys'}</span><button aria-label={`Open ${p.name}`} onClick={() => openProject(p.id)}><ArrowUp className="diagonal" size={19}/></button></div>
+          </article>) : (tab==='recent'?[...project.surveys].reverse():project.surveys).filter(s => `${s.name} ${s.description}`.toLowerCase().includes(query.toLowerCase())).map(s => <article className="project-card survey-card" key={s.id}><div className="card-top"><span className="folder-icon lavender"><FileText size={23}/></span><span className="badge">Draft</span><button className="icon-button" aria-label={`Delete ${s.name}`} onClick={() => {if(confirm('Delete this survey?')) setProjects(projects.map(p => p.id===project.id?{...p,surveys:p.surveys.filter(x=>x.id!==s.id)}:p));}}><Trash2 size={16}/></button></div><button className="card-content" onClick={() => setSurveyId(s.id)}><h2>{s.name}</h2><p>{s.description || 'A fresh start for your next conversation.'}</p></button><div className="card-footer"><span>{s.questions.length} questions · {s.updated}</span><button aria-label={`Edit ${s.name}`} onClick={() => setSurveyId(s.id)}><ArrowRight size={18}/></button></div></article>)}
+            {!query && <button className="create-card" onClick={() => showModal(project?'survey':'project')}><span><Plus size={24}/></span><strong>Create a {project?'survey':'project'}</strong><p>{project?'Every good answer starts with a question.':'A fresh space for your next big discovery.'}</p></button>}
+          </div>
+          {query && !(project?project.surveys:projects).some(x => `${x.name} ${x.description}`.toLowerCase().includes(query.toLowerCase())) && <div className="empty">No matches found. Try another search.</div>}
+          <div className="workspace-footnote"><span className="footnote-line"/><span>Thoughtful questions. Meaningful answers.</span><span className="footnote-line"/></div>
+          <div className="bottom-note"><span><span className="online"/>All changes saved locally</span><span>Made for curious minds <Sparkles size={13}/></span></div>
+        </>}
+      </main>
+    </div>
+    {modal && <div className="modal-backdrop" onClick={() => setModal(null)}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={e => e.stopPropagation()}><button className="modal-close icon-button" aria-label="Close" onClick={() => setModal(null)}><X size={20}/></button><span className="folder-icon lavender">{modal==='project'?<Folder size={25}/>:<FileText size={25}/>}</span><h2 id="modal-title">A new {modal}, a new possibility.</h2><p>{modal==='project'?'Give your research a place to grow.':'Let’s start asking the right questions.'}</p><form onSubmit={e => {e.preventDefault();create();}}><label>{modal==='project'?'Project':'Survey'} name<input required maxLength={100} autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={modal==='project'?'e.g. Customer experience':'e.g. First impressions'}/></label><label>Description <span>(optional)</span><textarea maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder="What would you like to discover?"/></label><div className="modal-buttons"><button type="button" onClick={() => setModal(null)}>Cancel</button><button className="primary" type="submit" disabled={!name.trim()}>Create {modal}<ArrowRight size={16}/></button></div></form></section></div>}
+    {preview && survey && <div className="modal-backdrop" onClick={() => setPreview(false)}><section className="modal preview" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={e=>e.stopPropagation()}><button className="modal-close icon-button" aria-label="Close preview" onClick={() => setPreview(false)}><X size={20}/></button><div className="eyebrow">SURVEY PREVIEW · ANSWERS ARE NOT SAVED</div>{submitted ? <div className="success"><Check size={40}/><h2>Thank you for sharing.</h2><p>That’s the end of this survey preview.</p><button className="primary" onClick={()=>setPreview(false)}>Back to editor</button></div> : <><h2 id="preview-title">{survey.name}</h2><p>{survey.description}</p><form onSubmit={e=>{e.preventDefault();setSubmitted(true);}}>{survey.questions.map((q,i)=><label className="preview-question" key={q.id}>{i+1}. {q.title || 'Untitled question'}{q.required && <span className="required"> *</span>}{q.type==='text'?<textarea required={q.required} placeholder="Share your thoughts…"/>:<select required={q.required} defaultValue=""><option value="" disabled>Select an option</option>{q.options.map((o,j)=><option key={j} value={`${j}`}>{o}</option>)}</select>}</label>)}{!survey.questions.length && <p>Add questions in the editor to preview your survey.</p>}<button className="primary" type="submit" disabled={!survey.questions.length}>Submit preview<ArrowRight size={16}/></button></form></>}</section></div>}
+  </div>;
+}
